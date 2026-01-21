@@ -28,9 +28,12 @@ COPY . .
 # Install Laravel dependencies
 RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader
 
-# Set permissions for Laravel
+# Set permissions
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Set Apache document root to public/
+RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
 
 # Generate APP_KEY if missing
 RUN if [ ! -f .env ]; then cp .env.example .env; fi
@@ -39,5 +42,5 @@ RUN php artisan key:generate --ansi
 # Expose Apache port
 EXPOSE 80
 
-# Start Apache in foreground
 CMD ["apache2-foreground"]
+
