@@ -8,7 +8,7 @@ class ExpenseController extends Controller
 {
     public function index()
     {
-        $expenses = Expense::latest()->get();
+        $expenses = Expenses::latest()->get();
         return view('expenses.index', compact('expenses'));
     }
 
@@ -19,7 +19,7 @@ class ExpenseController extends Controller
 
     public function save(Request $request)
     {
-        Expense::create($request->all());
+        Expenses::create($request->all());
         return redirect()->route('expenses.index');
     }
 }
