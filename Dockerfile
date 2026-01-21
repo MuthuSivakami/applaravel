@@ -1,57 +1,38 @@
-# Use PHP 8.2 with Apache
 FROM php:8.2-apache
 
 # System dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    zip \
-    libzip-dev \
-    libonig-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libxml2-dev \
-    libpq-dev \
-    curl \
+    git unzip zip curl \
+    libzip-dev libonig-dev libpng-dev libjpeg-dev \
+    libfreetype6-dev libxml2-dev libpq-dev \
     && docker-php-ext-install \
-        pdo \
-        pdo_mysql \
-        pdo_pgsql \
-        mbstring \
-        zip \
-        exif \
-        pcntl \
-        bcmath \
-        gd \
+        pdo pdo_mysql pdo_pgsql mbstring zip exif pcntl bcmath gd \
     && a2enmod rewrite
 
-# Set working directory
 WORKDIR /var/www/html
 
-# Install Composer
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy project files
+# Copy app
 COPY . .
 
-# Install Laravel dependencies
+# Install deps
 RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader
 
-# Create required directories & fix permissions (CRITICAL)
-RUN mkdir -p storage/logs \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
-
-# Set Apache document root to Laravel public folder
+# Apache root → public
 RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
 
-# Create .env if missing (Render injects env vars)
-RUN if [ ! -f .env ]; then cp .env.example .env; fi
+# Ensure folders exist
+RUN mkdir -p storage/logs bootstrap/cache
 
-# Run migrations once (no shell)
+# Copy start script
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Run migrations once (safe)
 RUN php artisan migrate --force || true
 
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+CMD ["/start.sh"]
