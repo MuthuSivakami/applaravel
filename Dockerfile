@@ -38,8 +38,9 @@ COPY . .
 # Install Laravel dependencies
 RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader
 
-# Set permissions
-RUN chown -R www-data:www-data storage bootstrap/cache \
+# Create required directories & fix permissions (CRITICAL)
+RUN mkdir -p storage/logs \
+    && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 # Set Apache document root to Laravel public folder
@@ -48,7 +49,7 @@ RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-avail
 # Create .env if missing (Render injects env vars)
 RUN if [ ! -f .env ]; then cp .env.example .env; fi
 
-# Run migrations automatically (NO shell needed)
+# Run migrations once (no shell)
 RUN php artisan migrate --force || true
 
 EXPOSE 80
