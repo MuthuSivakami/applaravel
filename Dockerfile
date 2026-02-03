@@ -1,38 +1,39 @@
 FROM php:8.2-apache
 
-# System dependencies
+# Enable Apache rewrite
+RUN a2enmod rewrite
+
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git unzip zip curl \
     libzip-dev libonig-dev libpng-dev libjpeg-dev \
     libfreetype6-dev libxml2-dev libpq-dev \
     && docker-php-ext-install \
-        pdo pdo_mysql pdo_pgsql mbstring zip exif pcntl bcmath gd \
-    && a2enmod rewrite
+        pdo pdo_mysql pdo_pgsql mbstring zip exif pcntl bcmath gd
 
+# Set working directory
 WORKDIR /var/www/html
 
-# Composer
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy app
+# Copy project files
 COPY . .
 
-# Install deps
+# Install Laravel dependencies
 RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader
 
-# Apache root → public
-RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
+# Set Apache document root to /public
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
+    /etc/apache2/sites-available/*.conf \
+    /etc/apache2/apache2.conf
 
-# Ensure folders exist
-RUN mkdir -p storage/logs bootstrap/cache
+# Permissions
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Copy start script
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
-# Run migrations once (safe)
-RUN php artisan migrate --force || true
-
+# Expose Apache port
 EXPOSE 80
 
-CMD ["/start.sh"]
+# ✅ START APACHE (THIS IS THE REAL START COMMAND)
+CMD ["apache2-foreground"]
